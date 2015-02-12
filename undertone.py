@@ -63,14 +63,6 @@ def main(argv):
             finally:
                 file.close()
 
-            #test
-            decompressor = zlib.decompressobj()
-
-            decompressed_crypt = decompressor.decompress(compressed_crypt)
-
-            decrypted_msg = decrypt_msg(key_dicts,decompressed_crypt)
-            print decrypted_msg
-            #test
             print   # pretty terminal newline
 
         elif str(argv[1]) == 'decrypt':
@@ -95,7 +87,7 @@ def main(argv):
 
                 decrypted_msg = decrypt_msg(key_dicts,decompressed_crypt)
 
-                print decrypted_msg
+                print '\n' + decrypted_msg + '\n'
         else:
             print ('\nERROR: First argument must be either \'encrypt\' or ' +
                     '\'decrypt\'.\n')
