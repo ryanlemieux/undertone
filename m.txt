@@ -1,9 +1,0 @@
-
-Here's version 2 alpha. You can use URLs for any of the file inputs now.
-
-Large files end up making huge messages (try it with say a 500k message with a 1.5mb keyfile). It's because the method of storing the byte positions is inefficient.
-
-The next goal would be to optimize undertone size. I have some ideas but it's a tricky problem.
-
-Anyways, now we have a fun way to send each other messages. :D
-
