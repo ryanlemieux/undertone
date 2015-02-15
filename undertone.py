@@ -132,6 +132,9 @@ def get_file(path,mode='rb'):
     #   Fetch file if URL specified as keyfile input:
     if re.match('(http)',path):
         input_file = fetch_url(path)
+
+        if mode == 'r':
+            input_file = input_file.decode('UTF-8')
     else:
         with open(path,mode) as file_path:
             input_file = file_path.read()
