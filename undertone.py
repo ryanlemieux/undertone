@@ -40,7 +40,6 @@ def main(argv):
         keyfile = get_file(args.encrypt[0][0])
         message = get_file(args.encrypt[0][1])
         keyfile_dicts = process_keyfile(keyfile)
-        #   Convert message to list of byte locations:
         undertone = create_undertone(keyfile_dicts, message)
         print(undertone)
 
@@ -48,17 +47,11 @@ def main(argv):
 
         decrypted_msg = ""
         keyfile = get_file(args.decrypt[0][0])
-        undertone_file = args.decrypt[0][1]
-        #   Fetch file if URL specified as keeyfile input:
-        if re.match('(http)',undertone_file):
-            undertone = fetch_url(undertone_file)
-        else:
-            with open(undertone_file,'r') as undertone_file:
-                undertone = undertone_file.read()
+        undertone = get_file(args.decrypt[0][1],'r')
+        keyfile_dicts = process_keyfile(keyfile)
+        decrypted_msg = decrypt_msg(keyfile_dicts,undertone)
+        sys.stdout.buffer.write(decrypted_msg)
 
-            keyfile_dicts = process_keyfile(keyfile)
-            decrypted_msg = decrypt_msg(keyfile_dicts,undertone)
-            sys.stdout.buffer.write(decrypted_msg)
     else:
         parser.print_help()
 
@@ -89,14 +82,12 @@ def create_undertone(keyfile_dicts, message):
 
     encrypted_msg = ''
     bytes_dict = keyfile_dicts[0]
+    #   Compress the file before encryption:
+    message = zlib.compress(message)
 
     for byte in message:
 
         byte = bytes([byte])
-
-        #   In the event of no byte available in the bytes_dict dict,
-        #   simply omit the byte from the string, and print a warning
-        #   message.
 
         #   The byte could be in the dictionary but still have an empty
         #   position list, as this algorithm removes byte positions as they
@@ -115,6 +106,7 @@ def create_undertone(keyfile_dicts, message):
             bytes_dict[byte].remove(random_byte_loc)
 
         else:
+            #   Running out of bytes from the keyfile pool is a fatal error.
             print('ERROR: Not enough bytes in pool!' +
             '\nRemedy: Use a larger keyfile.\n')
 
@@ -135,16 +127,15 @@ def decrypt_msg(keyfile_dicts,crypt_msg):
     #   Don't forget to decompress the message:
     return zlib.decompress(decrypted_msg)
 
-def get_file(path):
+def get_file(path,mode='rb'):
     #   Fetch file if URL specified as keyfile input:
     if re.match('(http)',path):
         input_file = fetch_url(path)
     else:
-        with open(path,'rb') as file_path:
-            input_file = bytearray(file_path.read())
+        with open(path,mode) as file_path:
+            input_file = file_path.read()
 
-    #   Compress the message before encryption:
-    return zlib.compress(input_file)
+    return input_file
 
 def fetch_url(url):
 
