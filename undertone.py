@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.4
 #
-# Undertone v1.1 alpha
+# Undertone v1.2 alpha
 #
 # Copyright (C) 2015 Ryan Lemieux <ryans.email.2@gmail.com>
 #
@@ -19,7 +19,7 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 
-__version__ = '1.1a'
+__version__ = '1.2a'
 
 __author__ = 'Ryan Lemieux'
 
@@ -104,6 +104,8 @@ def create_undertone(keyfile_dicts, message):
         #   just seeing if the byte is in the dictionary.
         if len(bytes_dict[byte]) > 0:
 
+            #   Randomize the location choice so that the same character is
+            #   not fetched in a linear fashion going through the file.
             random_byte_loc = random.choice(bytes_dict[byte])
             encrypted_msg += str(random_byte_loc) + '\n'
 
@@ -113,8 +115,10 @@ def create_undertone(keyfile_dicts, message):
             bytes_dict[byte].remove(random_byte_loc)
 
         else:
-            print('WARNING: Not enough bytes in pool: Omitting' +
-            ' byte.\nRemedy: Use a larger keyfile.\n')
+            print('ERROR: Not enough bytes in pool!' +
+            '\nRemedy: Use a larger keyfile.\n')
+
+            return None
 
     return encrypted_msg
 
@@ -128,7 +132,8 @@ def decrypt_msg(keyfile_dicts,crypt_msg):
             if int(location) in locations_dict: # Fail silently...
                 decrypted_msg += locations_dict[int(location)]
 
-    return decrypted_msg
+    #   Don't forget to decompress the message:
+    return zlib.decompress(decrypted_msg)
 
 def get_file(path):
     #   Fetch file if URL specified as keyfile input:
@@ -138,7 +143,8 @@ def get_file(path):
         with open(path,'rb') as file_path:
             input_file = bytearray(file_path.read())
 
-    return input_file
+    #   Compress the message before encryption:
+    return zlib.compress(input_file)
 
 def fetch_url(url):
 
