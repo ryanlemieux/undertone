@@ -1,6 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.4
 #
-# Undertone v1.0 alpha
+# Undertone v1.1 alpha
 #
 # Copyright (C) 2015 Ryan Lemieux <ryans.email.2@gmail.com>
 #
@@ -19,154 +19,143 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 
-import sys, os, random, zlib
+__version__ = '1.1a'
+
+__author__ = 'Ryan Lemieux'
+
+import sys, argparse, os, random, zlib, re
+import urllib.request
+from urllib.parse import urlparse
+from bitstring import bitstring
 
 def main(argv):
 
-    if len(argv) >= 4:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--encrypt',action='append',nargs=2,metavar=('keyfile','message'))
+    parser.add_argument('--decrypt',action='append',nargs=2,metavar=('keyfile','undertone'))
+    args = parser.parse_args()
 
-        action = argv[1]
-        binary_chunk = argv[2]
-        message = argv[3]
+    if args.encrypt:
 
-        if str(argv[1]) == 'encrypt':
+        keyfile = args.encrypt[0][0]
+        message_location = args.encrypt[0][1]
 
-            #   Use input message file in specified:
-            if message == '-f' and len(argv) == 5:
-                message_file = open(str(argv[4]),'rb')
-                message = message_file.read()
+        #   Fetch file if URL specified as message input:
+        if re.match('(http)',message_location):
+            message_location = fetch_url(message_location)
 
-            # Create ascii_chars and locations dictionaries from binary chunk:
-            key_dicts = process_chunk(binary_chunk)
-            ascii_chars = key_dicts[0]
+        with open(message_location,'rb') as message_file:
 
-            #   Convert message to list of char locations:
-            encrypted_msg = ""
+            message = bytearray(message_file.read())
 
-            for char in message:
+            #   Create byte and location dictionaries from keyfile:
+            keyfile_dicts = process_keyfile(keyfile)
 
-                #   In the event of no char available in the ascii_chars dict,
-                #   simply omit the char from the string, and print a warning
-                #   message.
-                if len(ascii_chars[char]) > 0:
+            #   Convert message to list of byte locations:
+            undertone = create_undertone(keyfile_dicts, message)
 
-                    random_char_loc = random.choice(ascii_chars[char])
-                    encrypted_msg += str(random_char_loc) + '\n'
+            print(undertone)
 
-                    #   Remove used char location from list to prevent the
-                    #   duplicate use of the char location, thus hampering
-                    #   frequency analysis.
-                    ascii_chars[char].remove(random_char_loc)
+    elif args.decrypt:
 
-                else:
-                    print ('WARNING: Not enough characters in pool: Omitting' +
-                    ' character.\nRemedy: Use a larger binary input file.\n')
+        keyfile = args.decrypt[0][0]
+        decrypted_msg = ""
+        decompressed_crypt = ""
 
-            # Compress encrypted_msg with zlib and write to file crypt.msg:
-            compressed_crypt = zlib.compress(encrypted_msg)
-            file = open('crypt.msg', 'wb')
+        with open(str(args.decrypt[0][1]),'r') as undertone_file:
 
-            try:
-                file.write(compressed_crypt)
-            finally:
-                file.close()
-
-        elif str(argv[1]) == 'decrypt':
-
-            decrypted_msg = ""
-            decompressed_crypt = ""
-            #   Using this zlib.decompressobj() allows silent decryption of
-            #   corrupted or incomplete compressed data.
-            decompressor = zlib.decompressobj()
-            file = open(str(message),'rb')
-            # Create ascii_chars and locations dictionaries from binary chunk:
-            key_dicts = process_chunk(binary_chunk)
-
-            try:
-                decompressed_crypt = decompressor.decompress(file.read())
-            finally:
-                file.close()
-
-                decrypted_msg = decrypt_msg(key_dicts,decompressed_crypt)
-
-            #   Write to output file if specified:
-            if len(argv) > 5 and argv[4] == '-o':
-
-                file = open(argv[5], 'wb')
-
-                try:
-                    file.write(decrypted_msg)
-                finally:
-                    file.close()
-            else:
-                print '\n' + decrypted_msg + '\n'
-        else:
-            print ('\nERROR: First argument must be either \'encrypt\' or ' +
-                    '\'decrypt\'.\n')
+            undertone = undertone_file.read()
+            keyfile_dicts = process_keyfile(keyfile)
+            decrypted_msg = decrypt_msg(keyfile_dicts,undertone)
+            sys.stdout.buffer.write(decrypted_msg)
     else:
-        print ('\nERROR: Too few command line arguments. Typical use:\n\n' +
-            'Encrypt: python undertone.py encrypt anyfile -f message\n' +
-        'Decrypt: python undertone.py decrypt anyfile crypt.msg -o output\n')
+        parser.print_help()
 
-def process_chunk(binary_chunk):
+def process_keyfile(keyfile):
 
-    ascii_chars = {}
+    bytes_dict = {}
     locations_dict = {}
     byte_location = 0
-    key_dicts = []
+    keyfile_dicts = []
 
-    with open(binary_chunk, "rb") as chunk:
+    with open(keyfile, "rb") as chunk:
+
         byte = chunk.read(1)
-        while byte:
-            if str(byte) not in ascii_chars:
-                location_list = [byte_location]
-                ascii_chars[str(byte)] = location_list
-            else:
-                #   Encoding to base36 slightly reduces encrypted msg filesize
-                ascii_chars[str(byte)] += [base36encode(byte_location)]
 
-            locations_dict[byte_location] = str(byte)
+        while byte:
+            if byte not in bytes_dict:
+                location_list = [byte_location]
+                bytes_dict[byte] = location_list
+            else:
+                bytes_dict[byte] += [byte_location]
+
+            locations_dict[byte_location] = byte
             byte = chunk.read(1)
             byte_location += 1
 
-    key_dicts = [ascii_chars,locations_dict]
-    return key_dicts
+    keyfile_dicts = [bytes_dict,locations_dict]
+    return keyfile_dicts
 
-def decrypt_msg(key_dicts,crypt_msg):
+def create_undertone(keyfile_dicts, message):
 
-    decrypted_msg = ""
-    locations_dict = key_dicts[1]
+    encrypted_msg = ''
+    bytes_dict = keyfile_dicts[0]
+
+    for byte in message:
+
+        byte = bytes([byte])
+
+        #   In the event of no byte available in the bytes_dict dict,
+        #   simply omit the byte from the string, and print a warning
+        #   message.
+
+        #   The byte could be in the dictionary but still have an empty
+        #   position list, as this algorithm removes byte positions as they
+        #   are used. So we have to check the length of the list, rather than
+        #   just seeing if the byte is in the dictionary.
+        if len(bytes_dict[byte]) > 0:
+
+            random_byte_loc = random.choice(bytes_dict[byte])
+            encrypted_msg += str(random_byte_loc) + '\n'
+
+            #   Remove used byte location from list to prevent the
+            #   duplicate use of the byte location, thus hampering
+            #   frequency analysis.
+            bytes_dict[byte].remove(random_byte_loc)
+
+        else:
+            print('WARNING: Not enough bytes in pool: Omitting' +
+            ' byte.\nRemedy: Use a larger keyfile.\n')
+
+    return encrypted_msg
+
+def decrypt_msg(keyfile_dicts,crypt_msg):
+
+    decrypted_msg = bytearray()
+    locations_dict = keyfile_dicts[1]
 
     for location in crypt_msg.split('\n'):
         if location !=  '':
-            if base36decode(location) in locations_dict: # Fail silently...
-                decrypted_msg += locations_dict[int(base36decode(location))]
+            if int(location) in locations_dict: # Fail silently...
+                decrypted_msg += locations_dict[int(location)]
 
     return decrypted_msg
 
-def base36encode(number, alphabet='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'):
+def fetch_url(url):
 
-    if not isinstance(number, (int, long)):
-        raise TypeError('number must be an integer')
+    temp_dir = "temp"
+    url_path = urllib.parse.urlparse(url)[2].split('/')
+    file_name = url_path[len(url_path) - 1]
+    file_path = temp_dir + '/' + file_name
 
-    base36 = ''
-    sign = ''
+    # TO DO: Proper try blocks here:
 
-    if number < 0:
-        sign = '-'
-        number = -number
+    if not os.path.exists(temp_dir):
+        os.makedirs(temp_dir)
 
-    if 0 <= number < len(alphabet):
-        return sign + alphabet[number]
+    urllib.request.urlretrieve(url,file_path)
 
-    while number != 0:
-        number, i = divmod(number,len(alphabet))
-        base36 = alphabet[i] + base36
-
-    return sign + base36
-
-def base36decode(number):
-    return int(number,36)
+    return file_path
 
 if __name__ == "__main__":
     main(sys.argv)
