@@ -37,34 +37,25 @@ def main(argv):
 
     if args.encrypt:
 
-        keyfile = args.encrypt[0][0]
-        message_location = args.encrypt[0][1]
-
-        #   Fetch file if URL specified as message input:
-        if re.match('(http)',message_location):
-            message_location = fetch_url(message_location)
-
-        with open(message_location,'rb') as message_file:
-
-            message = bytearray(message_file.read())
-
-            #   Create byte and location dictionaries from keyfile:
-            keyfile_dicts = process_keyfile(keyfile)
-
-            #   Convert message to list of byte locations:
-            undertone = create_undertone(keyfile_dicts, message)
-
-            print(undertone)
+        keyfile = get_file(args.encrypt[0][0])
+        message = get_file(args.encrypt[0][1])
+        keyfile_dicts = process_keyfile(keyfile)
+        #   Convert message to list of byte locations:
+        undertone = create_undertone(keyfile_dicts, message)
+        print(undertone)
 
     elif args.decrypt:
 
-        keyfile = args.decrypt[0][0]
         decrypted_msg = ""
-        decompressed_crypt = ""
+        keyfile = get_file(args.decrypt[0][0])
+        undertone_file = args.decrypt[0][1]
+        #   Fetch file if URL specified as keeyfile input:
+        if re.match('(http)',undertone_file):
+            undertone = fetch_url(undertone_file)
+        else:
+            with open(undertone_file,'r') as undertone_file:
+                undertone = undertone_file.read()
 
-        with open(str(args.decrypt[0][1]),'r') as undertone_file:
-
-            undertone = undertone_file.read()
             keyfile_dicts = process_keyfile(keyfile)
             decrypted_msg = decrypt_msg(keyfile_dicts,undertone)
             sys.stdout.buffer.write(decrypted_msg)
@@ -78,20 +69,18 @@ def process_keyfile(keyfile):
     byte_location = 0
     keyfile_dicts = []
 
-    with open(keyfile, "rb") as chunk:
+    for byte in keyfile:
 
-        byte = chunk.read(1)
+        byte = bytes([byte])
 
-        while byte:
-            if byte not in bytes_dict:
-                location_list = [byte_location]
-                bytes_dict[byte] = location_list
-            else:
-                bytes_dict[byte] += [byte_location]
+        if byte not in bytes_dict:
+            location_list = [byte_location]
+            bytes_dict[byte] = location_list
+        else:
+            bytes_dict[byte] += [byte_location]
 
-            locations_dict[byte_location] = byte
-            byte = chunk.read(1)
-            byte_location += 1
+        locations_dict[byte_location] = byte
+        byte_location += 1
 
     keyfile_dicts = [bytes_dict,locations_dict]
     return keyfile_dicts
@@ -141,21 +130,19 @@ def decrypt_msg(keyfile_dicts,crypt_msg):
 
     return decrypted_msg
 
+def get_file(path):
+    #   Fetch file if URL specified as keyfile input:
+    if re.match('(http)',path):
+        input_file = fetch_url(path)
+    else:
+        with open(path,'rb') as file_path:
+            input_file = bytearray(file_path.read())
+
+    return input_file
+
 def fetch_url(url):
 
-    temp_dir = "temp"
-    url_path = urllib.parse.urlparse(url)[2].split('/')
-    file_name = url_path[len(url_path) - 1]
-    file_path = temp_dir + '/' + file_name
-
-    # TO DO: Proper try blocks here:
-
-    if not os.path.exists(temp_dir):
-        os.makedirs(temp_dir)
-
-    urllib.request.urlretrieve(url,file_path)
-
-    return file_path
+    return urllib.request.urlopen(url).read()
 
 if __name__ == "__main__":
     main(sys.argv)
