@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.4
 #
-# Undertone v1.2 alpha
+# Undertone v2.0 alpha
 #
 # Copyright (C) 2015 Ryan Lemieux <ryans.email.2@gmail.com>
 #
@@ -19,20 +19,21 @@
 # License along with this program.  If not, see
 # <http://www.gnu.org/licenses/>.
 
-__version__ = '1.2a'
+__version__ = '2.0a'
 
 __author__ = 'Ryan Lemieux'
 
-import sys, argparse, os, random, zlib, re
+import sys, argparse, random, zlib, re
 import urllib.request
 from urllib.parse import urlparse
-from bitstring import bitstring
 
 def main(argv):
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--encrypt',action='append',nargs=2,metavar=('keyfile','message'))
-    parser.add_argument('--decrypt',action='append',nargs=2,metavar=('keyfile','undertone'))
+    parser.add_argument('--encrypt',action='append',
+                        nargs=2,metavar=('keyfile','message'))
+    parser.add_argument('--decrypt',action='append',
+                        nargs=2,metavar=('keyfile','undertone'))
     args = parser.parse_args()
 
     if args.encrypt:
@@ -107,8 +108,8 @@ def create_undertone(keyfile_dicts, message):
 
         else:
             #   Running out of bytes from the keyfile pool is a fatal error.
-            print('ERROR: Not enough bytes in pool!' +
-            '\nRemedy: Use a larger keyfile.\n')
+            print('ERROR: Not enough bytes in pool!\n' +
+                    'Remedy: Use a larger keyfile.\n')
 
             return None
 
