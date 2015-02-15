@@ -42,11 +42,12 @@ def main(argv):
         message = get_file(args.encrypt[0][1])
         keyfile_dicts = process_keyfile(keyfile)
         undertone = create_undertone(keyfile_dicts, message)
-        print(undertone)
+        
+        if undertone:
+            print(undertone)
 
     elif args.decrypt:
 
-        decrypted_msg = ""
         keyfile = get_file(args.decrypt[0][0])
         undertone = get_file(args.decrypt[0][1],'r')
         keyfile_dicts = process_keyfile(keyfile)
@@ -94,7 +95,7 @@ def create_undertone(keyfile_dicts, message):
         #   position list, as this algorithm removes byte positions as they
         #   are used. So we have to check the length of the list, rather than
         #   just seeing if the byte is in the dictionary.
-        if len(bytes_dict[byte]) > 0:
+        if byte in bytes_dict and len(bytes_dict[byte]) > 0:
 
             #   Randomize the location choice so that the same character is
             #   not fetched in a linear fashion going through the file.
@@ -108,7 +109,7 @@ def create_undertone(keyfile_dicts, message):
 
         else:
             #   Running out of bytes from the keyfile pool is a fatal error.
-            print('ERROR: Not enough bytes in pool!\n' +
+            print('\nERROR: Not enough bytes in pool!\n' +
                     'Remedy: Use a larger keyfile.\n')
 
             return None
