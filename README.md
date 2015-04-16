@@ -16,7 +16,7 @@ URLs can also be used to point to key files, undertones, and files to be encrypt
 
 ### How It Works
 
-When encrypting, the script first reads in every byte of the binary key file specified, placing them in an list. Next, the script looks at each byte in the file to be encrypted, and searches for a matching byte in the byte list of the key file. When a match is found, the index of the byte in the list is added to a list. This list of byte locations that is created is the encrypted message (we will call it an "undertone" file).
+When encrypting, the script first reads in every byte of the binary key file specified, placing them in a list. Next, the script looks at each byte in the file to be encrypted, and searches for a matching byte in the byte list of the key file. When a match is found, the index of the byte in the list is added to a list. This list of byte locations that is created is the encrypted message (we will call it an "undertone" file).
 
 When decrypting, the script again reads in every byte of the binary key file specified, placing them in a list. The undertone file (encrypted message) is then read, and the bytes that correspond to the index positions in the undertone file are output. If the correct key file was used to decrypt the undertone, the orginal input file will be output.
 
