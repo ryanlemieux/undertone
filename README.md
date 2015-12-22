@@ -1,5 +1,7 @@
 # Undertone
 
+Going to write a Go version of this!
+
 This python script encrypts any binary file using any arbitrary binary file as the encryption key. The encrypted file is called an "undertone".
 
 ## Usage
